@@ -129,7 +129,7 @@ extern const struct bpf_link_ops bpf_struct_ops_link_lops;
 int bpf_struct_ops_test_run(struct bpf_prog *prog, const union bpf_attr *kattr,
 			    union bpf_attr __user *uattr)
 {
-	const struct bpf_struct_ops *st_ops = &bpf_bpf_dummy_ops;
+	const struct bpf_struct_ops_desc *st_ops_desc;
 	const struct btf_type *func_proto;
 	struct bpf_dummy_ops_test_args *args;
 	struct bpf_tramp_links *tlinks = NULL;
@@ -173,9 +173,15 @@ int bpf_struct_ops_test_run(struct bpf_prog *prog, const union bpf_attr *kattr,
 	bpf_prog_inc(prog);
 	bpf_link_init(&link->link, BPF_LINK_TYPE_STRUCT_OPS, &bpf_struct_ops_link_lops, prog);
 
+	st_ops_desc = bpf_struct_ops_find(prog->aux->attach_btf, type_id);
+	if (!st_ops_desc || st_ops_desc->st_ops != &bpf_bpf_dummy_ops) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
 	op_idx = prog->expected_attach_type;
 	err = bpf_struct_ops_prepare_trampoline(tlinks, link,
-						&st_ops->func_models[op_idx],
+						&st_ops_desc->func_models[op_idx],
 						&dummy_ops_test_ret_function,
 						&image, &image_off,
 						true);
